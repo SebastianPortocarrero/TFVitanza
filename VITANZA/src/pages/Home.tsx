@@ -1,10 +1,24 @@
 import { ArrowRight, CheckCircle, Leaf, QrCode, Trophy, Instagram } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { Button } from '../components/Button';
 import { TikTokIcon } from '../components/icons/TikTokIcon';
+import { useAuth } from '../context/AuthContext';
 
 export const Home = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Redirigir usuarios autenticados a su dashboard correspondiente
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'ADMIN') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [user, navigate]);
 
   const features = [
     {

@@ -13,11 +13,17 @@ export const Header = () => {
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
-  const navigation = [
-    { name: 'Inicio', path: '/' },
-    { name: 'Menú', path: '/menu' },
-    { name: 'Nosotros', path: '/about' },
-  ];
+  // Navegación dinámica: ocultar "Inicio" para usuarios autenticados
+  const navigation = user
+    ? [
+      { name: 'Menú', path: '/menu' },
+      { name: 'Nosotros', path: '/about' },
+    ]
+    : [
+      { name: 'Inicio', path: '/' },
+      { name: 'Menú', path: '/menu' },
+      { name: 'Nosotros', path: '/about' },
+    ];
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">

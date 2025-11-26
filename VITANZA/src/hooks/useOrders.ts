@@ -181,6 +181,9 @@ export const useOrders = () => {
         updatedAt: new Date(orderData.updated_at),
       };
 
+      // Actualizar progreso de desafíos
+      await updateChallengeProgressAfterOrder(userId);
+
       return newOrder;
     } catch (error) {
       console.error('❌ Error al crear pedido:', error);
@@ -354,6 +357,51 @@ export const useOrders = () => {
     } catch (error) {
       console.error('Error al actualizar estado:', error);
       throw error;
+    }
+  };
+
+  // Actualizar progreso de desafíos después de crear un pedido
+  const updateChallengeProgressAfterOrder = async (userId: string) => {
+    try {
+      // Obtener desafíos activos relacionados con pedidos
+      const { data: challenges } = await supabase
+        .from('challenges')
+        .select('id, title, type')
+        .eq('is_active', true);
+
+      if (!challenges) return;
+
+      // Buscar desafíos de "ordena X veces"
+      const orderChallenges = challenges.filter(
+        (c) => c.title.toLowerCase().includes('ordena') || c.title.toLowerCase().includes('pedido')
+      );
+
+      for (const challenge of orderChallenges) {
+        // Obtener progreso actual
+        const { data: progress } = await supabase
+          .from('user_challenges')
+          .select('current_progress')
+          .eq('user_id', userId)
+          .eq('challenge_id', challenge.id)
+          .single();
+
+        if (progress) {
+          // Incrementar progreso
+          await supabase
+            .from('user_challenges')
+            .update({
+              current_progress: progress.current_progress + 1,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('user_id', userId)
+            .eq('challenge_id', challenge.id);
+
+          console.log(`✅ Desafío "${challenge.title}" actualizado`);
+        }
+      }
+    } catch (error) {
+      console.error('Error al actualizar desafíos:', error);
+      // No lanzar error para no bloquear la creación del pedido
     }
   };
 

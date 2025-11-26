@@ -1,7 +1,8 @@
-import { ArrowLeft, Save } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Save, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card } from '../components/Card';
@@ -18,15 +19,60 @@ export const Profile = () => {
   );
   const [weight, setWeight] = useState('75');
   const [height, setHeight] = useState('175');
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [error, setError] = useState('');
 
+  // Ocultar mensaje de éxito después de 3 segundos
+  useEffect(() => {
+    if (showSuccess) {
+      const timer = setTimeout(() => setShowSuccess(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccess]);
+
+  // Redirect si no hay usuario
   if (!user) {
     navigate('/login');
     return null;
   }
 
-  const handleSave = () => {
-    localStorage.setItem('vitanza_goal', goal);
-    alert('Perfil actualizado correctamente');
+  const handleSave = async () => {
+    if (!user?.id) return;
+
+    setIsSaving(true);
+    setError('');
+
+    try {
+      // Actualizar perfil en Supabase
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          name: name,
+          goal: goal,
+          weight: weight ? parseFloat(weight) : null,
+          height: height ? parseFloat(height) : null,
+        })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      // Guardar objetivo en localStorage
+      localStorage.setItem('vitanza_goal', goal);
+
+      // Mostrar notificación de éxito
+      setShowSuccess(true);
+
+      // Recargar la página para actualizar el contexto
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (err: any) {
+      console.error('Error al guardar perfil:', err);
+      setError('Error al guardar los cambios. Intenta de nuevo.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const goals: { id: FitnessGoal; label: string }[] = [
@@ -74,11 +120,10 @@ export const Profile = () => {
                 <button
                   key={g.id}
                   onClick={() => setGoal(g.id)}
-                  className={`p-4 rounded-lg border-2 transition-all ${
-                    goal === g.id
-                      ? 'border-emerald-500 bg-emerald-50'
-                      : 'border-gray-200 hover:border-emerald-300'
-                  }`}
+                  className={`p-4 rounded-lg border-2 transition-all ${goal === g.id
+                    ? 'border-emerald-500 bg-emerald-50'
+                    : 'border-gray-200 hover:border-emerald-300'
+                    }`}
                 >
                   <p className="font-semibold text-gray-900">{g.label}</p>
                 </button>
@@ -128,10 +173,30 @@ export const Profile = () => {
             </div>
           </Card>
 
+          {/* Notificación de éxito */}
+          {showSuccess && (
+            <div className="fixed top-4 right-4 z-50 animate-slide-in">
+              <div className="bg-emerald-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3">
+                <CheckCircle className="w-6 h-6" />
+                <div>
+                  <p className="font-semibold">Perfil actualizado</p>
+                  <p className="text-sm text-emerald-100">Tus cambios se guardaron correctamente</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg mb-6">
+              <p className="text-red-700">{error}</p>
+            </div>
+          )}
+
           <div className="flex justify-end">
-            <Button size="lg" onClick={handleSave}>
+            <Button size="lg" onClick={handleSave} isLoading={isSaving}>
               <Save className="w-5 h-5 mr-2" />
-              Guardar Cambios
+              {isSaving ? 'Guardando...' : 'Guardar Cambios'}
             </Button>
           </div>
         </div>

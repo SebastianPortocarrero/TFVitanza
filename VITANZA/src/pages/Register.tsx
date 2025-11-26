@@ -3,22 +3,56 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
+import { ErrorAlert } from '../components/ErrorAlert';
+import { validateEmail, validatePassword } from '../utils/validation';
+import { getAuthErrorMessage } from '../utils/errorHandler';
 
 export const Register = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
   const [error, setError] = useState('');
   const { register, isLoading } = useAuth();
   const navigate = useNavigate();
 
+  const handleEmailBlur = () => {
+    if (email && !validateEmail(email)) {
+      setEmailError('Por favor ingresa un email válido');
+    } else {
+      setEmailError('');
+    }
+  };
+
+  const handlePasswordBlur = () => {
+    if (password) {
+      const validation = validatePassword(password);
+      setPasswordErrors(validation.errors);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setEmailError('');
+    setPasswordErrors([]);
 
+    // Validaciones
     if (!name || !email || !password || !confirmPassword) {
       setError('Por favor completa todos los campos');
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setEmailError('Por favor ingresa un email válido');
+      return;
+    }
+
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      setPasswordErrors(passwordValidation.errors);
       return;
     }
 
@@ -27,16 +61,11 @@ export const Register = () => {
       return;
     }
 
-    if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres');
-      return;
-    }
-
     try {
       await register(name, email, password);
       navigate('/onboarding');
     } catch (err: any) {
-      setError(err.message || 'Error al crear la cuenta. Intenta de nuevo.');
+      setError(getAuthErrorMessage(err));
     }
   };
 
@@ -62,6 +91,7 @@ export const Register = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoComplete="name"
+              required
             />
 
             <Input
@@ -69,19 +99,41 @@ export const Register = () => {
               label="Correo Electrónico"
               placeholder="tu@email.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (emailError) setEmailError('');
+              }}
+              onBlur={handleEmailBlur}
+              error={emailError}
               autoComplete="email"
+              required
             />
 
-            <Input
-              type="password"
-              label="Contraseña"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-              helperText="Mínimo 6 caracteres"
-            />
+            <div>
+              <Input
+                type="password"
+                label="Contraseña"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (passwordErrors.length > 0) setPasswordErrors([]);
+                }}
+                onBlur={handlePasswordBlur}
+                autoComplete="new-password"
+                required
+              />
+              {passwordErrors.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {passwordErrors.map((err, idx) => (
+                    <p key={idx} className="text-xs text-red-600">• {err}</p>
+                  ))}
+                </div>
+              )}
+              {password && passwordErrors.length === 0 && (
+                <p className="mt-1 text-xs text-green-600">✓ Contraseña segura</p>
+              )}
+            </div>
 
             <Input
               type="password"
@@ -90,12 +142,14 @@ export const Register = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               autoComplete="new-password"
+              required
             />
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                {error}
-              </div>
+              <ErrorAlert
+                error={error}
+                onDismiss={() => setError('')}
+              />
             )}
 
             <Button type="submit" className="w-full" isLoading={isLoading}>

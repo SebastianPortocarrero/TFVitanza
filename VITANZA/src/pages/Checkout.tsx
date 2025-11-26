@@ -7,7 +7,9 @@ import { useOrders } from '../hooks/useOrders';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card } from '../components/Card';
+import { ErrorAlert } from '../components/ErrorAlert';
 import { formatCurrency } from '../utils/format';
+import { validatePhone, formatPhone } from '../utils/validation';
 import { FulfillmentType } from '../types';
 
 export const Checkout = () => {
@@ -20,6 +22,7 @@ export const Checkout = () => {
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'yape' | 'plin'>('card');
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
 
@@ -34,19 +37,40 @@ export const Checkout = () => {
     }
   }, [user, items.length, navigate]);
 
+  const handlePhoneBlur = () => {
+    if (phone && !validatePhone(phone)) {
+      setPhoneError('Ingresa un número válido (ej: 999888777)');
+    } else {
+      setPhoneError('');
+      // Formatear el teléfono si es válido
+      if (phone && validatePhone(phone)) {
+        setPhone(formatPhone(phone));
+      }
+    }
+  };
+
   const handlePlaceOrder = async () => {
     if (!user) {
       navigate('/login');
       return;
     }
 
-    if (fulfillmentType === 'delivery' && !address) {
-      setError('Por favor ingresa tu dirección de entrega');
+    setError('');
+    setPhoneError('');
+
+    // Validaciones
+    if (!phone) {
+      setPhoneError('Por favor ingresa tu número de teléfono');
       return;
     }
 
-    if (!phone) {
-      setError('Por favor ingresa tu número de teléfono');
+    if (!validatePhone(phone)) {
+      setPhoneError('Ingresa un número válido (ej: 999888777)');
+      return;
+    }
+
+    if (fulfillmentType === 'delivery' && !address) {
+      setError('Por favor ingresa tu dirección de entrega');
       return;
     }
 
@@ -120,11 +144,10 @@ export const Checkout = () => {
                 <button
                   key={option.id}
                   onClick={() => setFulfillmentType(option.id)}
-                  className={`p-4 rounded-lg border-2 transition-all text-center ${
-                    fulfillmentType === option.id
+                  className={`p-4 rounded-lg border-2 transition-all text-center ${fulfillmentType === option.id
                       ? 'border-emerald-500 bg-emerald-50'
                       : 'border-gray-200 hover:border-emerald-300'
-                  }`}
+                    }`}
                 >
                   <p className="font-semibold text-gray-900">{option.label}</p>
                   <p className="text-sm text-gray-600">{option.description}</p>
@@ -141,9 +164,15 @@ export const Checkout = () => {
               <Input
                 label="Número de Teléfono"
                 type="tel"
-                placeholder="+51 999 888 777"
+                placeholder="999 888 777"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  if (phoneError) setPhoneError('');
+                }}
+                onBlur={handlePhoneBlur}
+                error={phoneError}
+                helperText="Formato: 999888777 o +51 999 888 777"
                 required
               />
               {fulfillmentType === 'delivery' && (
@@ -170,11 +199,10 @@ export const Checkout = () => {
                   <button
                     key={option.id}
                     onClick={() => setPaymentMethod(option.id)}
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      paymentMethod === option.id
+                    className={`p-4 rounded-lg border-2 transition-all ${paymentMethod === option.id
                         ? 'border-emerald-500 bg-emerald-50'
                         : 'border-gray-200 hover:border-emerald-300'
-                    }`}
+                      }`}
                   >
                     <Icon className="w-8 h-8 mx-auto mb-2 text-gray-700" />
                     <p className="font-semibold text-gray-900">{option.label}</p>
@@ -206,9 +234,10 @@ export const Checkout = () => {
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                {error}
-              </div>
+              <ErrorAlert
+                error={error}
+                onDismiss={() => setError('')}
+              />
             )}
 
             <Button

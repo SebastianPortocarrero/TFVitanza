@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types';
 import { supabase } from '../lib/supabase';
+import { getAuthErrorMessage } from '../utils/errorHandler';
 
 interface AuthContextType {
   user: User | null;
@@ -202,7 +203,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     } catch (error: any) {
       console.error('❌ Error en login:', error);
-      throw new Error(error.message || 'Error al iniciar sesión');
+      throw new Error(getAuthErrorMessage(error));
     } finally {
       console.log('🏁 Login finalizado, setIsLoading(false)');
       setIsLoading(false);
@@ -234,7 +235,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     } catch (error: any) {
       console.error('Error en registro:', error);
-      throw new Error(error.message || 'Error al registrarse');
+      throw new Error(getAuthErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
